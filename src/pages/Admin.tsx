@@ -1,0 +1,22 @@
+import { useState } from 'react'
+import { ArrowRight, CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, Plus } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { api } from '../services/api'
+
+const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
+
+export default function Admin() {
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10))
+  const [version, setVersion] = useState(0)
+  const date = new Date(`${selectedDate}T12:00:00`)
+  const appointments = api.getAppointments().filter((item) => item.date === selectedDate).sort((a, b) => a.time.localeCompare(b.time))
+  const services = api.getServices()
+  const active = appointments.filter((item) => item.status === 'Confirmado')
+  const revenue = appointments.filter((item) => item.status === 'Concluído').reduce((sum, item) => sum + (services.find((service) => service.id === item.serviceId)?.price ?? 0), 0)
+  const moveDate = (amount: number) => { const next = new Date(`${selectedDate}T12:00:00`); next.setDate(next.getDate() + amount); setSelectedDate(next.toISOString().slice(0, 10)) }
+  function completeAppointment(id: number) {
+    api.saveAppointments(api.getAppointments().map((item) => item.id === id ? { ...item, status: 'Concluído' } : item))
+    setVersion(version + 1)
+  }
+  return <div className="page"><div className="page-heading"><div><span className="eyebrow">PAINEL DO STUDIO</span><h1>Agenda<span className="heading-period">.</span></h1><p>Uma visão tranquila do dia e de quem chega.</p></div><Link className="button button-primary heading-action" to="/agendamento"><Plus size={17} /> Novo horário</Link></div><div className="stats-row"><div className="stat-item"><span>Atendimentos hoje</span><strong>{active.length.toString().padStart(2, '0')}</strong><small>na agenda</small></div><div className="stat-item"><span>Ocupação</span><strong>{Math.min(100, Math.round(active.length / 8 * 100))}%</strong><small>da capacidade diária</small></div><div className="stat-item"><span>Concluídos hoje</span><strong>{appointments.filter((item) => item.status === 'Concluído').length.toString().padStart(2, '0')}</strong><small>{currency.format(revenue)} recebidos</small></div><div className="stat-item stat-action"><span>Gerenciar</span><Link to="/servicos">Serviços <ArrowRight size={15} /></Link></div></div><div className="calendar-heading"><div><span className="eyebrow">ATENDIMENTOS</span><h2>{date.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</h2></div><div className="date-controls"><button className="icon-button" aria-label="Dia anterior" onClick={() => moveDate(-1)}><ChevronLeft size={18} /></button><input aria-label="Escolher data" type="date" value={selectedDate} onChange={(event) => setSelectedDate(event.target.value)} /><button className="icon-button" aria-label="Próximo dia" onClick={() => moveDate(1)}><ChevronRight size={18} /></button><button className="button button-quiet today-button" onClick={() => setSelectedDate(new Date().toISOString().slice(0, 10))}><CalendarDays size={15} /> Hoje</button></div></div><div className="schedule-list" key={version}>{appointments.map((item) => { const service = services.find((entry) => entry.id === item.serviceId); return <article className={`schedule-item${item.status === 'Cancelado' ? ' schedule-cancelled' : ''}`} key={item.id}><div className="schedule-time"><strong>{item.time}</strong><span><Clock3 size={13} /> {service?.durationMin ?? 0} min</span></div><div className="schedule-rule" /><div className="schedule-info"><h3>{item.clientName}</h3><p>{service?.name} <span>·</span> {service?.description}</p></div><div className="schedule-actions"><span className={`status status-${item.status.toLowerCase()}`}>{item.status}</span>{item.status === 'Confirmado' && <button className="icon-button complete-button" aria-label={`Concluir atendimento de ${item.clientName}`} title="Marcar como concluído" onClick={() => completeAppointment(item.id)}><Check size={16} /></button>}</div></article> })}{appointments.length === 0 && <div className="empty-state"><CalendarDays size={22} /><p>Nenhum atendimento para este dia.</p></div>}</div></div>
+}

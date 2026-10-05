@@ -1,0 +1,14 @@
+import { ArrowUpRight, Download } from 'lucide-react'
+import { api } from '../services/api'
+
+const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
+
+export default function Financeiro() {
+  const services = api.getServices()
+  const appointments = api.getAppointments()
+  const completed = appointments.filter((item) => item.status === 'Concluído')
+  const total = completed.reduce((sum, item) => sum + (services.find((service) => service.id === item.serviceId)?.price ?? 0), 0)
+  const open = appointments.filter((item) => item.status === 'Confirmado').reduce((sum, item) => sum + (services.find((service) => service.id === item.serviceId)?.price ?? 0), 0)
+  const rows = completed.map((item) => ({ ...item, service: services.find((service) => service.id === item.serviceId) }))
+  return <div className="page"><div className="page-heading"><div><span className="eyebrow">GESTÃO DO STUDIO</span><h1>Financeiro<span className="heading-period">.</span></h1><p>Movimentações registradas pelos atendimentos concluídos.</p></div><button className="button button-quiet" onClick={() => window.print()}><Download size={16} /> Exportar / imprimir</button></div><div className="finance-overview"><div className="finance-total"><span className="eyebrow">RECEITA REGISTRADA</span><strong>{currency.format(total)}</strong><span><ArrowUpRight size={15} /> {completed.length} atendimentos concluídos</span></div><div className="finance-mini"><span>Ticket médio</span><strong>{currency.format(completed.length ? total / completed.length : 0)}</strong><small>por atendimento concluído</small></div><div className="finance-mini"><span>Em aberto</span><strong>{currency.format(open)}</strong><small>agendamentos confirmados</small></div></div><div className="section-heading table-heading"><div><span className="eyebrow">MOVIMENTAÇÕES</span><h2>Atendimentos concluídos</h2></div></div><div className="table-scroll"><table><thead><tr><th>CLIENTE</th><th>SERVIÇO</th><th>DATA</th><th>VALOR</th><th>STATUS</th></tr></thead><tbody>{rows.map((item) => <tr key={item.id}><td>{item.clientName}</td><td>{item.service?.name}</td><td>{new Date(`${item.date}T12:00:00`).toLocaleDateString('pt-BR')}</td><td>{item.service?.price == null ? 'A combinar' : currency.format(item.service.price)}</td><td><span className="status status-concluído">Concluído</span></td></tr>)}{rows.length === 0 && <tr><td colSpan={5} className="table-empty">Ainda não há atendimentos concluídos.</td></tr>}</tbody></table></div><div className="finance-footnote">Valores demonstrativos, armazenados somente neste navegador.</div></div>
+}
